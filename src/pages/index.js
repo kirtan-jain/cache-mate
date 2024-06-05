@@ -1,18 +1,32 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import styles from "../styles/Index.module.css";
+
 const IndexPage = () => {
   const [restData, setRestData] = useState([]);
   const [graphqlData, setGraphqlData] = useState(null);
-  const [cacheEnabled, setCacheEnabled] = useState(true);
+  const [cacheState, setCacheState] = useState({
+    cacheEnabled: true,
+    cacheAlways: false,
+    loadCache: false,
+  });
+
   useEffect(() => {
     const fetchInitialCacheState = async () => {
       const response = await axios.get("/cache-state");
-      setCacheEnabled(response.data.cacheEnabled);
+      setCacheState(response.data);
+      localStorage.setItem("cacheState", JSON.stringify(response.data));
     };
-
-    fetchInitialCacheState();
+    const savedCacheState = localStorage.getItem("cacheState");
+    if (savedCacheState) {
+      setCacheState(JSON.parse(savedCacheState));
+    } else {
+      fetchInitialCacheState();
+    }
   }, []);
+
   useEffect(() => {
+    // const abortController = new AbortController();
     const fetchRestData = async () => {
       try {
         const response = await axios.get("/api/rest");
@@ -21,41 +35,89 @@ const IndexPage = () => {
         console.error("rest fail", error);
       }
     };
+
     const fetchGraphqlData = async () => {
       try {
         const response = await axios.get("/api/graphql");
+        console.log("index sending graphql");
         setGraphqlData(response.data.data.pokemon);
       } catch (error) {
         console.error("graphql fail", error);
       }
     };
+
     fetchRestData();
     fetchGraphqlData();
+    // return () => abortController.abort();
   }, []);
 
-  const toggleCache = async () => {
-    const response = await axios.get("/toggle-cache");
-    setCacheEnabled(response.data.cacheEnabled);
+  const toggleCache = async (type) => {
+    try {
+      const response = await axios.get(`/toggle-cache?type=${type}`);
+      setCacheState(response.data);
+      localStorage.setItem("cacheState", JSON.stringify(response.data));
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  const deleteCache = async () => {
+    try {
+      const response = await axios.get("/delete-cache");
+      alert("Cache purged successfully");
+    } catch (error) {
+      console.error("Error deleting cache:", error);
+    }
+  };
   return (
-    <div>
-      <button onClick={toggleCache}>
-        {cacheEnabled ? "Disable" : "Enable"} Cache
+    <div className={styles.container}>
+      <div className={styles.toggles}>
+        <label>
+          <input
+            type="checkbox"
+            checked={cacheState.cacheEnabled}
+            onChange={() => toggleCache("cacheEnabled")}
+          />
+          Enable Cache
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={cacheState.cacheAlways}
+            onChange={() => toggleCache("cacheAlways")}
+          />
+          Always Use Cache
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={cacheState.loadCache}
+            onChange={() => toggleCache("loadCache")}
+          />
+          Load from Cache if Backend Down
+        </label>
+      </div>
+      <button className={styles.button} onClick={deleteCache}>
+        Purge Cache
       </button>
-      <h1>Data from GraphQL</h1>
-      {graphqlData && (
-        <div>
-          <h2>{graphqlData.name}</h2>
-          <img src={graphqlData.image} alt={graphqlData.name} />
-        </div>
-      )}
-      <h1>Data from REST</h1>
-      <ul>
-        {restData.map((post) => (
-          <li key={post.id}>{post.title}</li>
-        ))}
-      </ul>
+
+      <div className={styles.datasection}>
+        <h1>Data from GraphQL</h1>
+        {graphqlData && (
+          <div>
+            <h2>{graphqlData.name}</h2>
+            <img src={graphqlData.image} alt={graphqlData.name} />
+          </div>
+        )}
+      </div>
+      <div className={styles.datasection}>
+        <h1>Data from REST</h1>
+        <ul>
+          {restData.map((post) => (
+            <li key={post.id}>{post.title}</li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };

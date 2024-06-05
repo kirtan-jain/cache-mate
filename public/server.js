@@ -4,6 +4,7 @@ const {
   cacheMiddleware,
   getCache,
   toggleCache,
+  deleteCache,
   getCacheState,
 } = require("../src/middleware/cache.js");
 const restRoutes = require("../src/pages/api/rest.js");
@@ -23,8 +24,18 @@ app.prepare().then(() => {
   });
 
   server.get("/toggle-cache", (req, res) => {
-    const cacheState = toggleCache();
-    res.json({ cacheEnabled: cacheState });
+    const { type } = req.query;
+    try {
+      const cacheState = toggleCache(type);
+      res.json(cacheState);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  server.get("/delete-cache", (req, res) => {
+    const cacheState = deleteCache();
+    res.json(cacheState);
   });
   server.get("/cache-state", (req, res) => {
     const cacheState = getCacheState();

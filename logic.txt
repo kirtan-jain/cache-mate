@@ -1,0 +1,46 @@
+Button-1: cacheEnabled - User wants to use cache or not [true/false]
+Button-2: cacheAlways - if user wants to get data from cache or not (in every call irrespective of error or not)
+Button-3: loadCache - Backend is down, user wants to load from cache [true/false]
+Button-4: deleteCache - Purge all cache data [onClick]
+
+if(cacheEnabled)
+{
+    if(cacheAlways)
+    {
+        if(existsInCache)
+        {
+            return;
+        }
+        else
+        {
+            data=getBackend();
+            updateCache(data);
+            return data;
+        }
+    }
+    else
+    {
+        data=getBackend();
+        updateCache(data);
+        return data;
+    }
+}
+else
+{
+    data=getBackend();
+    return data;
+}
+
+if(loadCache)
+{       
+    if(existsInCache)
+    {
+        return;
+    }
+}
+
+if(deleteCache)
+{
+    cache.purgeAll();
+}
+//When Button-2 is on, Please switch on Button-1 first
