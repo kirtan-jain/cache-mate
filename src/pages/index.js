@@ -10,6 +10,7 @@ const IndexPage = () => {
     cacheAlways: false,
     loadCache: false,
   });
+  const [errorSimulation, setErrorSimulation] = useState(false);
 
   useEffect(() => {
     const fetchInitialCacheState = async () => {
@@ -29,7 +30,7 @@ const IndexPage = () => {
     // const abortController = new AbortController();
     const fetchRestData = async () => {
       try {
-        const response = await axios.get("/api/rest");
+        const response = await axios.get(`/api/rest`);
         setRestData(response.data);
       } catch (error) {
         console.error("rest fail", error);
@@ -38,7 +39,7 @@ const IndexPage = () => {
 
     const fetchGraphqlData = async () => {
       try {
-        const response = await axios.get("/api/graphql");
+        const response = await axios.get(`/api/graphql`);
         console.log("index sending graphql");
         setGraphqlData(response.data.data.pokemon);
       } catch (error) {
@@ -69,6 +70,19 @@ const IndexPage = () => {
       console.error("Error deleting cache:", error);
     }
   };
+
+  const toggleErrorSimulation = () => {
+    const newval = !errorSimulation;
+    localStorage.setItem("errorSimulation", newval);
+    setErrorSimulation(newval);
+  };
+
+  useEffect(() => {
+    const storedval = localStorage.getItem("errorSimulation");
+    if (storedval) {
+      setErrorSimulation(storedval === "true");
+    }
+  }, []);
   return (
     <div className={styles.container}>
       <div className={styles.toggles}>
@@ -97,6 +111,9 @@ const IndexPage = () => {
           Load from Cache if Backend Down
         </label>
       </div>
+      {/* <button onClick={toggleErrorSimulation}>
+        {cacheState.simulateError ? "Disable" : "Enable"} Error Simulation
+      </button> */}
       <button className={styles.button} onClick={deleteCache}>
         Purge Cache
       </button>

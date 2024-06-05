@@ -1,29 +1,62 @@
-const NodeCache = require("node-cache");
+const fs = require("fs");
+const path = require("path");
+const cacheFilePath = path.join(__dirname, "data.json");
+let cacheData = {};
+const loadCacheFromFile = () => {
+  const rawData = fs.readFileSync(cacheFilePath, "utf8");
+  cacheData = JSON.parse(rawData || "{}");
+};
 
-const cache = new NodeCache({ stdTTL: 30 });
+const saveCacheToFile = () => {
+  fs.writeFileSync(cacheFilePath, JSON.stringify(cacheData));
+};
+
 let cacheEnabled = true;
 let cacheAlways = false;
 let loadCache = false;
 
 const cacheMiddleware = (req, res, next) => {
   const key = req.originalUrl;
+  const cachedResponse = cacheData[key];
 
-  if (loadCache && cache.get(key)) {
-    console.log(`Load from cache due to backend down: ${key}`);
-    return res.send(cache.get(key));
+  loadCacheFromFile();
+
+  if (req.query.simulateError === "true") {
+    return res.status(500).send("Simulated error");
+  }
+  if (loadCache) {
+    try {
+      next();
+      res.on("finish", () => {
+        if (res.statusCode > 399) {
+          if (cacheData[key]) {
+            console.log(`serving cached data for ${key} due to backend error`);
+            res.send(cacheData[key]);
+          }
+        }
+      });
+    } catch (error) {
+      if (cacheData[key]) {
+        console.log(`serving cached data for ${key} due to backend error`);
+        res.send(cacheData[key]);
+      }
+      console.log("backend down and data not in cache");
+      return res.send("backend down and data not in cache");
+    }
+    return;
   }
 
   if (cacheEnabled) {
     if (cacheAlways) {
-      const cachedResponse = cache.get(key);
       if (cachedResponse) {
-        console.log(`Cache hit for ${key}`);
+        console.log(`cache hit for ${key}`);
         return res.send(cachedResponse);
       } else {
-        console.log(`Cache miss for ${key}`);
+        console.log(`cache miss for ${key}`);
         res.sendResponse = res.send;
         res.send = (body) => {
-          cache.set(key, body);
+          cacheData[key] = body;
+          saveCacheToFile();
           res.sendResponse(body);
         };
         return next();
@@ -31,7 +64,8 @@ const cacheMiddleware = (req, res, next) => {
     } else {
       res.sendResponse = res.send;
       res.send = (body) => {
-        cache.set(key, body);
+        cacheData[key] = body;
+        saveCacheToFile();
         res.sendResponse(body);
       };
       return next();
@@ -48,7 +82,7 @@ const toggleCache = (type) => {
     if (cacheEnabled) {
       cacheAlways = !cacheAlways;
     } else {
-      alert("Please switch on Cache Enabled first.");
+      alert("switch on Cache Enabled first.");
     }
   } else if (type === "loadCache") {
     loadCache = !loadCache;
@@ -57,12 +91,13 @@ const toggleCache = (type) => {
 };
 
 const deleteCache = () => {
-  cache.flushAll();
-  return cache.keys().length == 0;
+  cacheData = {};
+  saveCacheToFile();
+  return Object.keys(cacheData).length === 0;
 };
 
 const getCache = () =>
-  cache.keys().map((key) => ({ key, data: cache.get(key) }));
+  Object.keys(cacheData).map((key) => ({ key, data: cacheData[key] }));
 
 const getCacheState = () => ({ cacheEnabled, cacheAlways, loadCache });
 

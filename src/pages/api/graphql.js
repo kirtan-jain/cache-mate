@@ -21,6 +21,7 @@ router.get("/graphql", async (req, res) => {
     });
     const data = await response.json();
     res.json(data);
+    // res.status(500).json({ error: "graphql fails" });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ error: "graphql fails" });
